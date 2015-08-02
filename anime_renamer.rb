@@ -56,6 +56,7 @@ def sanitize_title(title)
   title.gsub!('/', ' - ')
   title.gsub!(':', ' -')
   title.gsub!('&amp;', '&')
+  title.gsub!(/[|\\*"<>?]/, '')
   title
 end
 
