@@ -37,8 +37,12 @@ def get_names(series_name)
     end
     index = text.index("<div>", index)
     name = text[index + 5, 200].split(/<[^ ]/)[0]
+    if /Episode \d/.match(name)
+      index = text.index("<div>", index + 5)
+      name = text[index + 5, 200].split(/<[^ ]/)[0]
+    end
     break if name.size == 0
-    names[num] = sanitize_title(name)
+    names[num] = sanitize_title(name) unless names[num]
   end
   names
 end
@@ -80,27 +84,29 @@ end
 def rename_folder(path)
   FileUtils.cd(path)
   files = Dir["*"]
+  files = files.select{ |x| !Dir.exist?(x) }
   num_hash = {}
   files.each do |file|
     parts = file.split(/[._'"\[\]\{\} -]/)
     nums = []
     parts.each do |s|
-      nums << s if s.to_i != 0 || s == "0"
+      nums << s.to_i.to_s if s.to_i != 0 || s == "0"
     end
-    num_hash[file] = nums
+    num_hash[file] = nums.uniq
   end
   num_hash, errors = correct_episode_numbers(num_hash)
   if errors.empty?
-    names = get_names(File.basename(path))
+    names = @mode == 'numbers' ? {} : get_names(File.basename(path))
     puts names
     name = File.basename(path)
     files.each do |file|
       extension = file.split('.').last
-      number = num_hash[file][0].length < 2 ? "0#{num_hash[file][0]}" : num_hash[file][0]
+      number = num_hash[file].length < 2 ? "0#{num_hash[file]}" : num_hash[file]
+      number = number.length < 3 && num_hash.size >= 100 ? "0#{number}" : number
       key = number.to_i.to_s rescue number
       if names[key]
         FileUtils.mv(file, "#{number} - #{names[key]}.#{extension}") unless file == "#{number} - #{names[key]}.#{extension}" || number.start_with?("ignore")
-      else
+      elsif @mode != 'names only'
         FileUtils.mv(file, "#{name} #{number}.#{extension}") unless file == "#{name} #{number}.#{extension}" || number.start_with?("ignore")
       end
     end
@@ -114,49 +120,32 @@ def correct_episode_numbers(num_hash)
   counts = Hash.new(0)
   errors = []
   num_hash.each_pair do |k, v|
-    next if v.size == 1
     if v.size == 0
       puts "Missing episode number in \"#{k}\". Please enter the episode number."
       input = gets.strip
-      v << input
-    end
-    if v.size > 2
+      num_hash[k] = input
+    elsif v.size > 1
       puts "Too many numbers in \"#{k}\". Please enter the episode number."
       input = gets.strip
-      v << input
+      num_hash[k] = input
+    else
+      num_hash[k] = v.first
     end
-    if v.size == 2
-      if k.include? "#{v[0]}.#{v[1]}"
-        v.replace(["#{v[0]}.#{v[1]}"])
-      elsif k.include? "#{v[0]}-#{v[1]}"
-        v.replace(["#{v[0]}-#{v[1]}"])
-      else
-        v.each do |x|
-          counts[x] += 1
-        end
+    counts[num_hash[k]] += 1
+  end
+  duplicates = []
+  counts.each_pair do |k, v|
+    if v > 1
+      num_hash.each_pair do |k1, v1|
+        duplicates << k1 if v1 == k
       end
     end
   end
-  common = -1
-  count = 1
-  counts.each_pair do |k, v|
-    if v > 1 && count > 1 && k != common
-      errors << "Episode number #{k} appears multiple times."
-    end
-    if v > count
-      common = k
-      count = v
-    end
+  duplicates.each do |d|
+    puts "Duplicate episode numbers. Please type the correct episode number/name for #{d}."
+    num_hash[d] = gets.delete("\n")
   end
-  if count > 1
-    num_hash.each_pair do |k, v|
-      v2 = v.uniq
-      v.delete(common)
-      v.replace(v2) if v.empty?
-      errors << "Episode numbering error type 1." if v.size != 1
-    end
-  end
-  errors << "Duplicate episode numbers." if num_hash.values.uniq.size != num_hash.values.size
+  #errors << "Duplicate episode numbers." if num_hash.values.uniq.size != num_hash.values.size
   return num_hash, errors
 end
 
@@ -171,23 +160,43 @@ end
 paths = File.open('input.txt') do |file|
   file.readlines
 end
-
-paths.each do |p|
-  paths2 = Dir["#{p}*"]
-  paths2.each do |p2|
-    next unless Dir.exist?(p2)
-    puts "Folder: #{p2}. Rename files in this folder? (y/n)"
-    input = gets
-    if (input.downcase.start_with?("y"))
-      rename_folder(p2)
-    else
-      next
-    end
-  end
-end
+path = paths[0]
+path << "/" unless path.end_with? "/"
 
 # paths.each do |p|
-#   rename_folder(p)
+#   paths2 = Dir["#{p}*"]
+#   paths2.each do |p2|
+#     next unless Dir.exist?(p2)
+#     puts "Folder: #{p2}. Rename files in this folder? (y/n)"
+#     input = gets
+#     if (input.downcase.start_with?("y"))
+#       rename_folder(p2)
+#     else
+#       next
+#     end
+#   end
 # end
+
+@mode = "names"
+
+puts "Type folder name or command"
+while folder = gets.strip
+  break if folder.downcase == 'quit' || folder.downcase == 'exit'
+  if folder == 'numbers'
+    @mode = 'numbers'
+    puts "mode changed"
+  elsif folder == 'names'
+    @mode = 'names'
+    puts "mode changed"
+  elsif folder == 'names only'
+    @mode = 'names only'
+    puts "mode changed"
+  elsif Dir.exist?("#{path}#{folder}/")
+    rename_folder("#{path}#{folder}/")
+  else
+    puts "Folder not found"
+  end
+  puts "Type folder name or command"
+end
 
 
