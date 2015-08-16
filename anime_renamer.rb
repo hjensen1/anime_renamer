@@ -106,9 +106,9 @@ def rename_folder(path)
     number = number.length < 3 && num_hash.size >= 100 ? "0#{number}" : number
     key = number.to_i.to_s rescue number
     if names[key]
-      FileUtils.mv(file, "#{number} - #{names[key]}.#{extension}") unless file == "#{number} - #{names[key]}.#{extension}" || number.start_with?("ignore")
+      FileUtils.mv(file, "#{number} - #{names[key]}.#{extension}") unless File.exist?("#{number} - #{names[key]}.#{extension}") || number.start_with?("ignore")
     elsif @mode != 'titles only'
-      FileUtils.mv(file, "#{name} #{number}.#{extension}") unless file == "#{name} #{number}.#{extension}" || number.start_with?("ignore")
+      FileUtils.mv(file, "#{name} #{number}.#{extension}") unless File.exist?("#{name} #{number}.#{extension}") || number.start_with?("ignore")
     end
   end
 end
