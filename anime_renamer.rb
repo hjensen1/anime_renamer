@@ -208,7 +208,7 @@ if File.exist?("input.txt")
     file.readlines
   end
 else
-  paths = ['/']
+  paths = ['.']
 end
 @path = paths[0] || "/"
 @path << "/" unless @path.end_with? "/"
