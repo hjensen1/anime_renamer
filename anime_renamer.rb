@@ -2,7 +2,7 @@ require 'fileutils'
 require 'open-uri'
 
 def get_names(series_name)
-  search_page = open("http://www.animenewsnetwork.com/encyclopedia/search/name?q=#{sanitize(series_name)}")
+  search_page = open("https://www.animenewsnetwork.com/encyclopedia/search/name?q=#{sanitize(series_name)}")
   search_text = search_page.read
   pages = []
   index = 0
@@ -23,7 +23,7 @@ def get_names(series_name)
   else
     id = pages[get_user_search_input(series_name, pages)][0]
   end
-  file = open("http://www.animenewsnetwork.com/encyclopedia/anime.php?id=#{id}&page=25")
+  file = open("https://www.animenewsnetwork.com/encyclopedia/anime.php?id=#{id}&page=25")
   text = file.read
   index = 0
   names = {}
